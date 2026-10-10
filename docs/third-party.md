@@ -18,6 +18,10 @@
 
 Maven POM 的 license 元数据标注 Apache-2.0；地图服务及 SDK 的实际使用还须遵守百度开放平台当期服务、隐私与开发者协议，不能用 POM 元数据推导服务无限免费。参考[产品说明](https://lbsyun.baidu.com/docs/android?title=androidsdk%2Findex)、[开发者权益](https://lbsyun.baidu.com/solutions/privilege)、[隐私政策](https://lbsyun.baidu.com/index.php?title=openprivacy)。AK、额度和签名绑定由用户控制台管理。本轮使用用户配置的 AK 验证了鉴权成功与 GCJ-02 实际点击，完整接入证据和视觉检查结论见 `tests/manual/verification.md`。不带 AK 的构建不能用于地图接入验收。
 
+## GoGoGo 实现对照
+
+参考 [ZCShou/GoGoGo](https://github.com/ZCShou/GoGoGo)，核对提交 `de0d596190c57b8ca71481f60ce6b9e50af5107f` 的 `app/src/main/java/com/zcshou/service/ServiceGo.java`。该仓库标注 GPL-3.0-only。本轮用于核对系统 test provider 的创建、属性、高度和 GPS 卫星附加字段，未复制其代码、资源或引入其依赖。FakeRun 独立使用 Android 公共 API，保留设备原来源/功耗/精度属性并声明高度/速度/方向能力；按用户要求使用 55 米高度基准与 7 颗模拟卫星默认值，允许配置，另实现连续高度误差与弱信号精度档位。具体差异与未采用项见 `tests/manual/gogogo-reference.md`。
+
 ## 构建与 Android 组件
 
 | 组件 | 固定版本 | 来源/许可 |

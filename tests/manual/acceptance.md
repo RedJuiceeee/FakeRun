@@ -10,6 +10,8 @@
 4. 点击大陆固定点，记录 GCJ-02 点击数值，添加 marker 与 polyline 检查覆盖物一致性；与可核对的独立 WGS84 点比较。不能只看自有正逆互测。
 5. 静态 test provider 用下面测试读取 WGS84，核对 `time`、`elapsedRealtimeNanos`、accuracy、speed、bearing 和 mock 标记；清理后真实 provider 恢复可用。真实 GPS 恢复接收还需设备卫星条件，不能把 provider 存在等同于已定位。
 
+1.0.1 还须核对模拟高度、垂直精度与 GPS 的 satellites 附加字段；默认 55 米基准、±1.5 米连续观测误差、7 颗卫星。单独运行 `nativeProviderCharacteristicsAndSynchronizedOutput`，确认来源/功耗/精度属性保留、输出能力启用以及结束后的原属性恢复。参数保存测试还检查旧 JSON 缺字段迁移和非法卫星小数拒绝。无 ADB 的用户流程见 `gogogo-reference.md`；GNSS 卫星状态回调不属于已模拟接口。
+
 ## 完整运行
 
 绘制约 1 km、至少 200 米可用直线的闭合路线。配置 2 圈、10 km/h、2 次停止、停留基准 10 秒、5 km/h、20% 步行，其他默认开启。先检查完整预览可行，记录 seed、各驻留实际时长、预计步行比例与地图步行范围；不在本场景手动暂停。
