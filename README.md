@@ -2,6 +2,8 @@
 
 中文 Android 本地模拟定位应用。手工绘制闭合路线，生成一次完整预览后，通过系统开发者选项授权的 test provider 输出 WGS84 GPS / network 位置。应用保留 Android 的 mock 标记。
 
+当前版本 **1.0.1（versionCode 2）**：[下载 Release 安装包](https://github.com/RedJuiceeee/FakeRun/releases/tag/v1.0.1)。本次发布用户已核验的 `FakeRun-1.0.1-debug.apk`，使用 Android 调试签名，不是正式 release 签名包。Android 8.0 及以上可安装；安装与使用步骤见下文。签名、校验值和验证范围见 [1.0.1 发布说明](docs/release-1.0.1.md)。
+
 首版已实现路线编辑与保存、有限圈数、平滑跑步/步行速度、连续横摆与避让、GPS 观测漂移、全程随机驻留、集中步行比例求解、前台服务、暂停/继续/结束。已通过百度地图鉴权、算法测试和 Android 模拟器上的完整两圈场景；实际范围与真机待验收项见 [本轮验证记录](tests/manual/verification.md)。没有 AK 的构建不会初始化地图，不能视为地图鉴权成功。
 
 ## 构建与 AK
@@ -73,6 +75,6 @@ Linux/macOS 使用 `./gradlew`。不带 AK 仍可构建并运行纯算法测试�
 
 Honor Magic 8 Pro / Android 17 上，1.0.0 已复现步道乐跑 4.1.7 准备页不采用系统模拟位置：真实前台服务及 gps/network/passive 读取对照通过，目标定位处理的具体分支仍未确认。旧版证据见 [定位兼容排查记录](tests/manual/location-compatibility.md)。
 
-1.0.1 参考 GoGoGo 修正定位来源属性：覆盖前保留设备原 gps/network 的来源、功耗和精度类型，并声明模拟高度/速度/方向输出能力。按用户追加要求加入可配置高度、GPS 卫星 extras 和弱信号观测档位。设备缺少 network 时明确提示关闭相应开关并重新生成预览。新版由用户直接安装测试，步道乐跑兼容性和“GPS信号弱”提示改善尚未验证；[参考对照与无 ADB 测试步骤](tests/manual/gogogo-reference.md)说明具体变化、验收与限制。
+1.0.1 参考 GoGoGo 修正定位来源属性：覆盖前保留设备原 gps/network 的来源、功耗和精度类型，并声明模拟高度/速度/方向输出能力。按用户追加要求加入可配置高度、GPS 卫星 extras 和弱信号观测档位。设备缺少 network 时明确提示关闭相应开关并重新生成预览。用户于 2026-10-10 反馈“核验通过”，并确认发布本次已核验的 debug APK；未提供逐项结果，因此不据此宣称所有第三方应用兼容或弱 GPS 提示均已解决。[参考对照与无 ADB 测试步骤](tests/manual/gogogo-reference.md)保留发布前的验证证据与步骤。
 
 第三方来源和许可证见 [docs/third-party.md](docs/third-party.md)。完整产品规则以 `plan.md` 为准。

@@ -1,8 +1,13 @@
 * text=auto eol=lf
 *.jar binary
 *.apk binary
+*.aab binary
+*.apks binary
+*.idsig binary
 *.aar binary
 *.png binary
 *.jpg binary
 *.keystore binary
 *.jks binary
+*.p12 binary
+*.pfx binary
