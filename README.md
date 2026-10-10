@@ -67,4 +67,6 @@ Linux/macOS 使用 `./gradlew`。不带 AK 仍可构建并运行纯算法测试�
 
 不包含 Root、Hook、隐藏 mock 标记、第三方检测绕过、传感器伪造、账号、服务器或成绩上传。厂商后台管理、真实手机及融合定位接口仍需要各自验收；地图图标移动不能证明系统位置注入。
 
+步道乐跑 4.1.7 的定位差异正在排查，尚未确认真机原因或完成兼容修复。已确认的 APK 信息、候选原因及真机复现步骤见 [定位兼容排查记录](tests/manual/location-compatibility.md)。
+
 第三方来源和许可证见 [docs/third-party.md](docs/third-party.md)。完整产品规则以 `plan.md` 为准。
