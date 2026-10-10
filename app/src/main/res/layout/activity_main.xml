@@ -10,6 +10,7 @@
   <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
     <ScrollView android:id="@+id/page_ready" android:layout_width="match_parent" android:layout_height="match_parent">
       <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
+        <TextView android:id="@+id/last_session" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" android:textColor="#A43716" android:paddingBottom="8dp" android:textSize="16sp" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="1. 同意隐私说明，启用百度地图。\n2. 配置自己的百度 Android SDK AK，绑定包名与签名 SHA-1。\n3. 允许精确定位、打开系统定位。\n4. 在开发者选项选择 FakeRun 为模拟位置信息应用。\n\n模拟输出保留系统 mock 标记，不保证所有第三方应用采用。手工路线只支持中国大陆普通城市区域。" android:textSize="16sp" android:lineSpacingExtra="5dp" />
         <Button android:id="@+id/privacy" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="查看并同意隐私说明" />
         <Button android:id="@+id/ak_help" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AK 与签名配置说明" />

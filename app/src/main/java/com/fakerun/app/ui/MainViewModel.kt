@@ -14,7 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
-data class EditorState(val route: Route=Route(UUID.randomUUID().toString(),"未命名路线",emptyList(),false), val config: SimulationConfig=SimulationConfig(), val prepared: PreparedSimulation?=null, val preparing: Boolean=false, val message: String="", val revision: Int=0)
+data class EditorState(val route: Route=Route(UUID.randomUUID().toString(),"未命名路线",emptyList(),false), val config: SimulationConfig=SimulationConfig(), val prepared: PreparedSimulation?=null, val preparing: Boolean=false, val message: String="", val revision: Int=0, val previousSessionMessage: String="")
 class MainViewModel(application: Application): AndroidViewModel(application) {
     private val repository=RouteRepository(application)
     private val mutableState=MutableStateFlow(EditorState())
@@ -33,7 +33,8 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
                 val data=repository.load()
                 routes=data.routes
                 dataLoaded=true
-                withContext(Dispatchers.Main) {mutableState.value=mutableState.value.copy(config=data.config,message=repository.previousSessionMessage())}
+                val previousSessionMessage=repository.previousSessionMessage()
+                withContext(Dispatchers.Main) {mutableState.value=mutableState.value.copy(config=data.config,message=previousSessionMessage,previousSessionMessage=previousSessionMessage)}
             } catch (error: java.io.IOException) {showMessage("本地文件读取失败：${error.message}")}
             catch (error: org.json.JSONException) {showMessage("本地 JSON 损坏：${error.message}；保留原文件")}
             catch (error: IllegalArgumentException) {showMessage("本地数据无效：${error.message}；保留原文件")}

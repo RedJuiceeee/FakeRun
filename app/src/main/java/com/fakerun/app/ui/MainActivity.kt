@@ -220,6 +220,7 @@ class MainActivity: ComponentActivity() {
     private fun renderEditor(state: EditorState) {
         if (lastConfig!=state.config) {lastConfig=state.config; fillFields(state.config)}
         findViewById<TextView>(R.id.message).text=state.message
+        findViewById<TextView>(R.id.last_session).apply {text="上次会话：${state.previousSessionMessage}"; visibility=if (state.previousSessionMessage.isBlank()) View.GONE else View.VISIBLE}
         findViewById<Button>(R.id.cancel_prepare).visibility=if (state.preparing) View.VISIBLE else View.GONE
         findViewById<Button>(R.id.prepare).isEnabled=!state.preparing && !SessionState.status.value.active
         findViewById<TextView>(R.id.route_info).text="${state.route.name} · ${state.route.nodes.size} 个节点 · ${if (state.route.closed) "已闭合" else "未闭合"}\n相邻节点直线连接；长按拖动，点击编辑/删除。蓝：中心线，绿：人物，紫：步行，橙：GPS 输出。"
