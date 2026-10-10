@@ -4,36 +4,41 @@
 
 ## 当前任务及范围
 
-用户反馈 FakeRun 模拟位置能被高德地图采用，但步道乐跑显示真实位置，要求分析提供的 APK 并修复。当前完成静态排查，兼容修复尚未完成；没有修改生产代码或第三方 APK，没有生成新安装包。
+用户要求排查并修复 FakeRun 模拟位置能被高德地图采用、步道乐跑却显示真实位置的问题，随后提供 Honor Magic 8 Pro / Android 17 并连接 ADB 继续检查。
 
-此前首版应用已实现及验收的状态保留，详见 `tests/manual/verification.md`；此前完整交付说明可通过 Git 提交 `19f5b13` 查阅。旧验收不能证明此次步道乐跑兼容。
+已完成静态分析和该真机准备页对照：当前系统注入正常、真实前台服务持续运行，目标准备页仍不采用模拟位置。具体 SDK 分支未确认，兼容修复未完成。未修改生产代码或第三方 APK，未生成新版普通 APK。
+
+此前首版实现和验收记录见 `tests/manual/verification.md`；完整旧交付说明可通过 Git 提交 `19f5b13` 查阅。第一轮静态排查见提交 `836cc2d`，其“未连接手机”阻碍已解除，以下为最新状态。
 
 ## 完成内容与修改文件
 
-- `tests/manual/location-compatibility.md`：记录输入 APK 身份与摘要、高德定位组件、加固壳和 ABI 证据，明确候选原因及未验证项，给出真机对照流程。
-- `README.md`：链接本次排查记录，明确尚未修复。
-- `change.md`：更新为当前任务的真实状态与恢复条件。
+- `tests/device/com/fakerun/app/ProviderCompatibilityTest.kt`：新增显式启用的跨应用对照窗口，使用合成路线及真实前台服务，暂停后监听 gps/network/passive 新样本，检查服务持续运行，并清理、恢复会话提示。测试不保存合成路线。
+- `tests/manual/location-compatibility.md`：更新真机版本、权限、对照结果、工具修订原因、退出恢复证据、已排除项与仍未确认项。
+- `README.md`：更新兼容问题的真实进度与记录链接。
+- `change.md`：更新本次任务状态和下一步。
 
-原始 APK、解压内容和分析输出未提交。`AGENTS.md`、`plan.md`、用户本机配置、生产代码与此前应用构建产物未改动。
+生产源码、用户路线、目标 APK、应用权限、AK 和本机配置未修改。设备日志、截图数据和构建输出仅存忽略目录，不提交。
 
 ## 验证证据
 
-- APK 为 `com.lptiyu.tanke`，版本 `4.1.7` / code `217`；SHA-256 为 `1E1434F57802E48CE1A38942D7DBF1EC57B5292F0C4DB5108D377A24EEA375CA`。
-- 已用现有 `aapt` / `dexdump` 和 ZIP 检查确认高德定位服务、ARM ABI、5 个可见 Secneo 壳类。业务调用实参与定位分支无法从当前可解析 DEX 确认。
-- 已检查 FakeRun 系统注入代码：gps 与可选 network，默认同时模拟 network，保留系统 mock 标记。
-- `adb devices -l` 没有连接设备。本轮未运行目标应用真机测试，未取得运行时定位证据。
-- 文档按 UTF-8 无 BOM、LF 保存，执行 `scripts/check-text.ps1` 与 `git diff --check` 检查。本轮没有生产代码变化，不运行算法测试或 APK 构建。
+- 手机报告型号 `BKQ-AN10`、Android 17 / API 37；FakeRun 1.0.0 / code 1，步道乐跑 4.1.7 / code 217。精确定位授权、系统定位和 FakeRun mock 资格正常。
+- 目标在准备页登记 gps/network/passive 请求，未观察到 fused 请求。保持注入、重新启动目标进程并重新进入准备页后，仍未采用合成位置，显示“GPS信号弱”。计时、距离和打卡数为零，没有启动计时或提交运动记录。
+- 最终构建命令为 `gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --console=plain`，构建成功。设备测试重新编译；普通 APK 与算法为 UP-TO-DATE，沿用未改源码版本的 8 项算法通过结果，不声称重新执行了算法测试。
+- 第一次工具直接在后台测试线程注入，频率断言失败；改用生产前台服务并允许客户端合并回调后重建、重测。工具改动没有降低生产输出频率。
+- 最终设备命令：`adb shell am instrument -w -e class com.fakerun.app.ProviderCompatibilityTest#stationaryMockWindowForExternalReader -e checkTarget true -e holdSeconds 120 com.fakerun.app.test/androidx.test.runner.AndroidJUnitRunner`。结果 `OK (1 test)`，134.46 秒。120 秒固定窗口中 gps/network 各 563 条、passive 1126 条新样本，坐标与 mock 标记不匹配均为 0，服务一直 active。
+- 退出后系统 gps/network identity 恢复，无本应用 mock override、SimulationService 或活跃会话唤醒锁。测试 APK 已卸载，临时设备 UI 文件已删除，USB 供电亮屏设置恢复为原值 0；用户会话提示恢复。
+- 执行文本编码检查和差异检查；原始设备信息未提交。完整方法与局限见排查记录。
 
 ## 未完成事项、明确阻碍及所需外部条件
 
-尚未确认目标页面的定位来源、缓存行为、SDK 模拟设置或拒绝分支，尚未实施或验收修复。
+尚未获得目标最终定位回调的定位类型、错误码、mock 标记与坐标，不能确认它调用了 `setMockEnable(false)`，也不能在 SDK 独立网络位置、持久缓存、过滤或设备对特定目标的处理之间作最终归因。
 
-明确阻碍：目标 APK 经过加固，静态可解析代码不足以确定业务流程；本机没有连接问题手机。提供包只有 ARM 原生库，现有 x86_64 模拟器不能替代未经验证的目标真机环境。
+明确阻碍：提供 APK 的业务代码经过加固，目标日志没有暴露上述诊断信息，普通 ADB 不足以检查其内部定位选项。公开系统 test provider 能输出 mock 位置，无法要求第三方采用；没有可证明的 FakeRun 注入缺陷可供修复。`plan.md` 排除 Root、Hook、mock 隐藏、第三方检测绕过及传感器伪造，本轮没有擅自扩大范围。
 
-恢复条件：连接发生问题的手机并授权 USB 调试，提供手机型号、Android 版本、实际安装的目标版本及出现真实定位的页面。无需账户密码或用户运动成绩。
+需要外部条件：目标应用提供的可调试测试版本、相关定位配置源码或官方定位诊断。无需重新索要手机连接、账户密码或用户运动记录。
 
 ## 下一执行者的准确下一步
 
-先读 `tests/manual/location-compatibility.md`，在同一手机用暂停中的合成路线对照系统 gps/network 输出、目标包的系统请求与目标页面刷新结果。原始设备输出仅存忽略的本地目录，提交记录去除实际位置和个人信息。
+先阅读 `tests/manual/location-compatibility.md`。不要重复已经通过的同设备同源码系统对照，也不要无证据增加 fused 或伪造卫星信息。
 
-只有证明系统接口遗漏或注入缺陷后，才修正对应 provider 实现并运行受影响测试、构建与一次目标真机场景。若确认目标主动拒绝 mock 或采用独立 SDK 网络位置，说明系统 test provider 的实际限制；遵守 `plan.md` 排除 Root、Hook、mock 隐藏及检测绕过的范围，不把猜测写成根因或修复完成。
+取得目标诊断后，核对最终 SDK 回调和系统新样本：若确认系统接口注入缺陷，修正对应边界、运行必要算法/构建及目标真机验证；若确认目标主动拒绝 mock 或选择独立 SDK 位置，明确报告现有系统模拟方案的兼容限制。只有目标实际采用模拟位置并完成相关验收，才能将原修复任务标为完成。
