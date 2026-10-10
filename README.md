@@ -2,7 +2,7 @@
 
 中文 Android 本地模拟定位应用。手工绘制闭合路线，生成一次完整预览后，通过系统开发者选项授权的 test provider 输出 WGS84 GPS / network 位置。应用保留 Android 的 mock 标记。
 
-当前版本 **1.0.2（versionCode 3）**：[下载 Release 安装包](https://github.com/RedJuiceeee/FakeRun/releases/tag/v1.0.2)。`FakeRun-1.0.2-debug.apk` 使用 Android 调试签名，不含预置 AK；安装后在准备页填写自己的 AK，无需重新编译。Android 8.0 及以上可安装。正式签名教程见 [生成正式版签名](docs/signing.md)。旧版 1.0.1 含 AK 的安装包未公开发布。
+当前版本 **1.0.2（versionCode 3）**：[下载正式版安装包](https://github.com/RedJuiceeee/FakeRun/releases/download/v1.0.2/FakeRun-1.0.2-release.apk)。`FakeRun-1.0.2-release.apk` 由用户在 Android Studio 生成正式签名，不含预置 AK；安装后在准备页填写自己的 AK，无需重新编译。Android 8.0 及以上可安装。原 debug 附件已被正式包替换，签名不同，不能直接覆盖 debug 版；卸载会删除私有路线和配置。正式签名教程见 [生成正式版签名](docs/signing.md)。旧版 1.0.1 含 AK 的安装包未公开发布。
 
 首版已实现路线编辑与保存、有限圈数、平滑跑步/步行速度、连续横摆与避让、GPS 观测漂移、全程随机驻留、集中步行比例求解、前台服务、暂停/继续/结束。已通过百度地图鉴权、算法测试和 Android 模拟器上的完整两圈场景；实际范围与真机待验收项见 [本轮验证记录](tests/manual/verification.md)。没有 AK 的构建不会初始化地图，不能视为地图鉴权成功。
 
@@ -16,7 +16,7 @@
 4. 在[百度地图开放平台控制台](https://lbsyun.baidu.com/apiconsole/key)创建 **Android SDK** 类型应用，包名填写 `com.fakerun.app`，SHA-1 填写刚复制的指纹。
 5. 将生成的 AK 粘贴到应用内并保存，再同意隐私说明启用地图；看到“百度地图鉴权成功”后绘制路线。AK 仅存在应用私有存储，不写入源码或安装包；SDK 鉴权时会将其发送给百度。可在同一入口清除 AK。地图已初始化后更换/清除 AK 需关闭并重开应用；运行期间不能修改。
 
-本次 debug APK 的签名 SHA-1：`24:7D:FB:FE:FD:58:DD:5D:3F:5F:CF:7C:DC:11:8E:AA:A0:FA:A8:6F`。不同机器的 debug 签名通常不同，正式签名也不同；请以应用内显示的实际指纹为准。
+当前正式 APK 的签名 SHA-1：`19:5A:13:B1:E2:FA:4D:40:FA:F8:15:46:E0:AC:AC:4A:48:60:5F:F1`。百度 AK 需绑定这份正式证书。自行构建的 debug 包或其他私钥签署的包具有不同指纹；请以应用内显示的实际 SHA-1 为准。
 
 Linux/macOS 使用 `./gradlew`。从 1.0.2 起构建不读取 `BAIDU_MAP_AK`，旧本地配置即使保留也不会被打包。未填写 AK 时地图不初始化，已保存的路线和模拟引擎仍可使用。release 支持未提交的 `signing.properties`；未提供时 `assembleRelease` 生成不可直接安装的 unsigned APK，完整生成/签署步骤见 [签名教程](docs/signing.md)。
 

@@ -26,3 +26,13 @@
 5. 本轮没有用户正式私钥，正式签名流程仅提供配置与教程；release unsigned 构建已验证，真实正式证书构建/安装/百度绑定需用户执行。
 
 既有两圈、后台/息屏、暂停恢复和第三方目标兼容性记录按对应版本保留，本轮不重复无变化场景，也不宣称本版本已通过全部真机场景。
+
+## 正式签名包替换核验（2026-10-10）
+
+- 用户通过 Android Studio 生成 `app/release/app-release.apk`；发布副本命名为 `FakeRun-1.0.2-release.apk`，保留原文件。
+- `apksigner verify --verbose --print-certs`：v2 签名有效，证书与原 Android Debug 证书不同；正式 SHA-1 为 `19:5A:13:B1:E2:FA:4D:40:FA:F8:15:46:E0:AC:AC:4A:48:60:5F:F1`。
+- `aapt dump badging/xmltree`：包名 `com.fakerun.app`、1.0.2 / code 3、min 26 / target 36、四种 ABI；未启用 debuggable；Manifest AK 为空。
+- 正式包 79,678,475 字节，SHA-256：`6311BEE4160CE4E70A395FE2D0AD3477C97DDBDDD18908A07AD4770C145BAF0B`；全包解压条目扫描未发现原本机 AK。
+- 对比此前 unsigned release：差异仅为签名块与 `META-INF/version-control-info.textproto`；前者无正式签名，后者由旧构建时 `2871e53` 更新为用户构建时 `324dd91`。其余 192 个条目完全相同，包含 DEX、Manifest、资源、原生库与 assets。
+- 本轮未修改应用源码或构建配置，没有重新构建用户包或重复算法/模拟器场景。正式证书下的百度 AK 鉴权、覆盖安装与手机运行尚未由本轮验证；既有 debug 设备结果不可作为这些项目的通过证据。
+- Android Studio 导出的 `app/release/` 整体加入忽略规则，APK、元数据和 baseline profiles 不进入 Git。私钥和签名密码不读取、不上传。
