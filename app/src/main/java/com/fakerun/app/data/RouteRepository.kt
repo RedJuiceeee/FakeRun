@@ -34,7 +34,15 @@ class RouteRepository(context: Context) {
         }
         require(routes.map {it.id}.distinct().size==routes.size) {"本地路线 ID 重复"}
         val value=root.getJSONObject("config")
-        val config=SimulationConfig(value.getInt("loopCount"),value.getDouble("runSpeedKmh"),value.getInt("stopCount"),value.getInt("stopDurationSeconds"),value.getDouble("walkSpeedKmh"),value.getDouble("walkTimeRatio"),value.getBoolean("naturalSway"),value.getBoolean("avoidance"),value.getDouble("maxLateralOffsetMeters"),value.getBoolean("gpsDrift"),value.getBoolean("mockNetwork"))
+        // 旧版文件没有新增观测字段；仅在缺字段时迁移默认值，非法字段仍报错。
+        val satelliteCount=if (value.has("satelliteCount")) {
+            val count=value.getDouble("satelliteCount")
+            require(count.isFinite() && count==count.toInt().toDouble()) {"本地 JSON 模拟卫星数须为整数"}
+            count.toInt()
+        } else 7
+        val config=SimulationConfig(value.getInt("loopCount"),value.getDouble("runSpeedKmh"),value.getInt("stopCount"),value.getInt("stopDurationSeconds"),value.getDouble("walkSpeedKmh"),value.getDouble("walkTimeRatio"),value.getBoolean("naturalSway"),value.getBoolean("avoidance"),value.getDouble("maxLateralOffsetMeters"),value.getBoolean("gpsDrift"),value.getBoolean("mockNetwork"),
+            altitudeMeters=if (value.has("altitudeMeters")) value.getDouble("altitudeMeters") else 55.0,
+            satelliteCount=satelliteCount)
         config.validate()
         require(config.walkSpeedKmh.isFinite()) {"本地 JSON 步行速度不是有限数值"}
         return SavedData(routes,config)
@@ -48,6 +56,7 @@ class RouteRepository(context: Context) {
         }
         val c=data.config
         val config=JSONObject().put("loopCount",c.loopCount).put("runSpeedKmh",c.runSpeedKmh).put("stopCount",c.stopCount).put("stopDurationSeconds",c.stopDurationSeconds).put("walkSpeedKmh",c.walkSpeedKmh).put("walkTimeRatio",c.walkTimeRatio).put("naturalSway",c.naturalSway).put("avoidance",c.avoidance).put("maxLateralOffsetMeters",c.maxLateralOffsetMeters).put("gpsDrift",c.gpsDrift).put("mockNetwork",c.mockNetwork)
+            .put("altitudeMeters",c.altitudeMeters).put("satelliteCount",c.satelliteCount)
         val bytes=JSONObject().put("version",1).put("routes",routes).put("config",config).toString(2).toByteArray(Charsets.UTF_8)
         val stream=file.startWrite()
         try {stream.write(bytes); file.finishWrite(stream)} catch (error: java.io.IOException) {file.failWrite(stream); throw error}

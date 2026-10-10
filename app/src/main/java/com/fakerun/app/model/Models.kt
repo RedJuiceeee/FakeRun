@@ -18,7 +18,9 @@ data class SimulationConfig(
     val avoidance: Boolean = true,
     val maxLateralOffsetMeters: Double = 3.0,
     val gpsDrift: Boolean = true,
-    val mockNetwork: Boolean = true
+    val mockNetwork: Boolean = true,
+    val altitudeMeters: Double = 55.0,
+    val satelliteCount: Int = 7
 ) {
     fun validate() {
         require(loopCount in 1..100) { "循环次数须为 1～100" }
@@ -28,6 +30,8 @@ data class SimulationConfig(
         require(walkTimeRatio.isFinite() && walkTimeRatio in 0.0..0.8 && kotlin.math.abs(walkTimeRatio * 100 - kotlin.math.round(walkTimeRatio * 100)) < 1e-6) { "步行占比须为 0～80% 的整数百分点" }
         if (walkTimeRatio > 0) require(walkSpeedKmh.isFinite() && walkSpeedKmh in 1.0..7.0 && walkSpeedKmh < runSpeedKmh) { "步行速度须为 1～7 km/h，且低于跑步速度" }
         require(maxLateralOffsetMeters.isFinite() && maxLateralOffsetMeters in 0.0..3.0) { "最大横向偏移须为 0～3 米" }
+        require(altitudeMeters.isFinite() && altitudeMeters in -500.0..9000.0) { "模拟 WGS84 椭球高度须为 -500～9000 米" }
+        require(satelliteCount in 0..32) { "模拟 GPS 卫星数量须为 0～32" }
     }
 }
 
@@ -76,5 +80,8 @@ data class SimulationSnapshot(
     val completedStops: Int,
     val userIntervened: Boolean,
     val interventionDistanceMeters: Double = 0.0,
-    val message: String = ""
+    val message: String = "",
+    val altitudeMeters: Double = 55.0,
+    val verticalAccuracyMeters: Double = 3.0,
+    val satelliteCount: Int = 7
 )

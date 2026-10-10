@@ -127,6 +127,74 @@ class DeviceAcceptanceTest {
         return model.state.value.route
     }
 
+    @Suppress("DEPRECATION")
+    private fun providerCharacteristics(name: String): List<Any> {
+        val provider=manager.getProvider(name) ?: error("设备没有 $name 定位来源")
+        return listOf(provider.requiresNetwork(),provider.requiresSatellite(),provider.requiresCell(),
+            provider.hasMonetaryCost(),provider.supportsAltitude(),provider.supportsSpeed(),
+            provider.supportsBearing(),provider.powerRequirement,provider.accuracy)
+    }
+
+    @Test fun nativeProviderCharacteristicsAndSynchronizedOutput() {
+        val activity=activity()
+        val controller=MockLocationController(AndroidProviderAccess(manager))
+        val names=listOf("gps","network")
+        val original=names.associateWith {providerCharacteristics(it)}
+        val received=mutableMapOf<String,Location>()
+        val latch=CountDownLatch(2)
+        val now=SystemClock.elapsedRealtimeNanos()
+        val wallTimeMillis=System.currentTimeMillis()
+        val point=Wgs84Point(39.915,116.404)
+        val snapshot=SimulationSnapshot(RunState.PAUSED,MotionMode.DWELL,point,point,point,
+            0.0,90.0,5.0,0.0,0.0,0,0.0,0.0,0,false)
+        val listener=object: LocationListener {
+            override fun onLocationChanged(location: Location) {
+                // 只核对本次时间戳，避免把注册时返回的历史样本当作新输出。
+                if (location.elapsedRealtimeNanos!=now) return
+                synchronized(received) {
+                    if (received.put(location.provider!!,Location(location))==null) latch.countDown()
+                }
+            }
+        }
+        try {
+            SimulationService.checkReadiness(context)
+            controller.open(true)
+            names.forEach {name ->
+                val expected=original.getValue(name).toMutableList().apply {this[4]=true; this[5]=true; this[6]=true}
+                assertEquals("$name 的来源/功耗/精度或输出能力不正确",expected,providerCharacteristics(name))
+                manager.requestLocationUpdates(name,0,0f,listener,Looper.getMainLooper())
+            }
+            controller.output(snapshot,wallTimeMillis,now)
+            assertTrue("未收到 gps/network 的同步新位置",latch.await(5,TimeUnit.SECONDS))
+            names.forEach {name ->
+                val location=synchronized(received) {received.getValue(name)}
+                assertEquals(name,location.provider)
+                assertEquals(point.latitude,location.latitude,1e-9)
+                assertEquals(point.longitude,location.longitude,1e-9)
+                assertEquals(wallTimeMillis,location.time)
+                assertEquals(now,location.elapsedRealtimeNanos)
+                assertEquals(5f,location.accuracy,0f)
+                assertEquals(0f,location.speed,0f)
+                assertEquals(90f,location.bearing,0f)
+                assertTrue(location.hasAltitude())
+                assertEquals(55.0,location.altitude,1e-9)
+                assertTrue(location.hasVerticalAccuracy())
+                assertEquals(3f,location.verticalAccuracyMeters,0f)
+                if (name=="gps") assertEquals(7,location.extras!!.getInt("satellites"))
+                else assertFalse(location.extras?.containsKey("satellites")==true)
+                @Suppress("DEPRECATION")
+                assertTrue(location.isFromMockProvider)
+            }
+        } finally {
+            manager.removeUpdates(listener)
+            val errors=controller.close()
+            instrumentation.runOnMainSync {activity.finish()}
+            assertTrue(errors.joinToString("；"),errors.isEmpty())
+        }
+        names.forEach {assertEquals("$it 清理后属性未恢复",original[it],providerCharacteristics(it))}
+        report("gps/network 来源属性、模拟高度/卫星字段、同步 WGS84/时间/零速/mock 输出和清理恢复通过。")
+    }
+
     @Test fun staticWgs84InjectionAndOwnedCleanup() {
         val activity=activity()
         SimulationService.checkReadiness(context)
@@ -148,7 +216,9 @@ class DeviceAcceptanceTest {
             assertEquals(now,actual.elapsedRealtimeNanos)
             assertTrue(actual.hasAccuracy())
             assertTrue(actual.hasSpeed())
-            assertFalse(actual.hasAltitude())
+            assertTrue(actual.hasAltitude())
+            assertEquals(55.0,actual.altitude,1e-9)
+            assertEquals(7,actual.extras!!.getInt("satellites"))
             @Suppress("DEPRECATION")
             assertTrue(actual.isFromMockProvider)
         } finally {manager.removeUpdates(listener); assertTrue(controller.close().isEmpty()); instrumentation.runOnMainSync {activity.finish()}}
@@ -193,10 +263,17 @@ class DeviceAcceptanceTest {
         val previous=if (file.exists()) file.readBytes() else null
         val repository=RouteRepository(storage)
         try {
-            val expected=SavedData(listOf(syntheticRoute()),SimulationConfig(stopCount=2,walkTimeRatio=0.2))
+            val expected=SavedData(listOf(syntheticRoute()),SimulationConfig(stopCount=2,walkTimeRatio=0.2,altitudeMeters=123.5,satelliteCount=9))
             repository.save(expected)
             assertEquals(expected,repository.load())
             assertFalse(file.readBytes().take(3)==listOf(0xEF.toByte(),0xBB.toByte(),0xBF.toByte()))
+            val legacy=org.json.JSONObject(file.readText(Charsets.UTF_8))
+            legacy.getJSONObject("config").apply {remove("altitudeMeters"); remove("satelliteCount")}
+            file.writeText(legacy.toString(),Charsets.UTF_8)
+            assertEquals(expected.copy(config=expected.config.copy(altitudeMeters=55.0,satelliteCount=7)),repository.load())
+            legacy.getJSONObject("config").put("satelliteCount",1.5)
+            file.writeText(legacy.toString(),Charsets.UTF_8)
+            assertThrows(IllegalArgumentException::class.java) {repository.load()}
         } finally {if (previous==null) file.delete() else file.writeBytes(previous)}
         val first=activity()
         instrumentation.runOnMainSync {
@@ -298,7 +375,9 @@ class DeviceAcceptanceTest {
                         if (distanceMeters>3+snapshot.speedMetersPerSecond*delaySeconds) mismatches+="读取位置偏差 $distanceMeters 米"
                         @Suppress("DEPRECATION")
                         if (!location.isFromMockProvider) mismatches+="收到非 mock 位置"
-                        if (!location.hasSpeed() || !location.hasBearing() || !location.hasAccuracy() || location.hasAltitude()) mismatches+="字段不符合计划"
+                        if (!location.hasSpeed() || !location.hasBearing() || !location.hasAccuracy() || !location.hasAltitude() || !location.hasVerticalAccuracy()) mismatches+="字段不符合计划"
+                        if (abs(location.altitude-snapshot.altitudeMeters)>0.1) mismatches+="高度与观测快照不一致"
+                        if (location.provider=="gps" && location.extras?.getInt("satellites")!=snapshot.satelliteCount) mismatches+="模拟卫星数与配置不一致"
                         if (abs(location.speed-snapshot.speedMetersPerSecond)>0.3) mismatches+="报告速度与人物速度不一致"
                         if (snapshot.mode==MotionMode.RUN && location.speed*3.6 !in 7.999..12.001) mismatches+="跑步巡航超出 8～12 km/h"
                         if (snapshot.mode==MotionMode.WALK && location.speed*3.6 !in 3.999..6.001) mismatches+="步行巡航超出 4～6 km/h"

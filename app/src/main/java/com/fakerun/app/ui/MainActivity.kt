@@ -184,11 +184,12 @@ class MainActivity: ComponentActivity() {
     }
     private fun buildFields() {
         val container=findViewById<LinearLayout>(R.id.config_fields)
-        val specifications=listOf("loopCount" to "循环次数（1～100）","runSpeedKmh" to "跑步基准（km/h，4～20）","stopCount" to "全程中途停止次数（0～20）","stopDurationSeconds" to "停留基准（秒，3～120）","walkSpeedKmh" to "步行基准（km/h，1～7）","walkPercent" to "步行移动时间占比（%，0～80）","maxLateralOffsetMeters" to "最大人物横向偏移（米，0～3）")
+        val specifications=listOf("loopCount" to "循环次数（1～100）","runSpeedKmh" to "跑步基准（km/h，4～20）","stopCount" to "全程中途停止次数（0～20）","stopDurationSeconds" to "停留基准（秒，3～120）","walkSpeedKmh" to "步行基准（km/h，1～7）","walkPercent" to "步行移动时间占比（%，0～80）","maxLateralOffsetMeters" to "最大人物横向偏移（米，0～3）","altitudeMeters" to "模拟椭球高度（米，-500～9000）","satelliteCount" to "模拟 GPS 卫星数（0～32；<4 为弱信号）")
         specifications.forEach {(key,label) ->
             val row=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL; gravity=android.view.Gravity.CENTER_VERTICAL}
             val text=TextView(this).apply {this.text=label; textSize=15f}
             val input=EditText(this).apply {inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL; setSingleLine(); contentDescription=label}
+            if (key=="altitudeMeters") input.inputType=input.inputType or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
             row.addView(text,LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,2f))
             row.addView(input,LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
             container.addView(row); fields[key]=input
@@ -207,11 +208,12 @@ class MainActivity: ComponentActivity() {
         fun number(key: String): Double = fields.getValue(key).text.toString().toDoubleOrNull()?.takeIf {it.isFinite()} ?: throw IllegalArgumentException("请检查 ${fields.getValue(key).contentDescription}")
         fun integer(key: String): Int {val value=number(key); require(value==kotlin.math.floor(value) && value in Int.MIN_VALUE.toDouble()..Int.MAX_VALUE.toDouble()) {"${fields.getValue(key).contentDescription} 须为整数"}; return value.toInt()}
         val percent=integer("walkPercent")
-        return SimulationConfig(integer("loopCount"),number("runSpeedKmh"),integer("stopCount"),integer("stopDurationSeconds"),if (percent==0) fields.getValue("walkSpeedKmh").text.toString().toDoubleOrNull()?.takeIf {it.isFinite()} ?: model.state.value.config.walkSpeedKmh else number("walkSpeedKmh"),percent/100.0,checks.getValue("naturalSway").isChecked,checks.getValue("avoidance").isChecked,number("maxLateralOffsetMeters"),checks.getValue("gpsDrift").isChecked,checks.getValue("mockNetwork").isChecked).also {it.validate()}
+        return SimulationConfig(integer("loopCount"),number("runSpeedKmh"),integer("stopCount"),integer("stopDurationSeconds"),if (percent==0) fields.getValue("walkSpeedKmh").text.toString().toDoubleOrNull()?.takeIf {it.isFinite()} ?: model.state.value.config.walkSpeedKmh else number("walkSpeedKmh"),percent/100.0,checks.getValue("naturalSway").isChecked,checks.getValue("avoidance").isChecked,number("maxLateralOffsetMeters"),checks.getValue("gpsDrift").isChecked,checks.getValue("mockNetwork").isChecked,
+            altitudeMeters=number("altitudeMeters"),satelliteCount=integer("satelliteCount")).also {it.validate()}
     }
     private fun fillFields(config: SimulationConfig) {
         fillingFields=true
-        val values=mapOf("loopCount" to config.loopCount,"runSpeedKmh" to config.runSpeedKmh,"stopCount" to config.stopCount,"stopDurationSeconds" to config.stopDurationSeconds,"walkSpeedKmh" to config.walkSpeedKmh,"walkPercent" to (config.walkTimeRatio*100).toInt(),"maxLateralOffsetMeters" to config.maxLateralOffsetMeters)
+        val values=mapOf("loopCount" to config.loopCount,"runSpeedKmh" to config.runSpeedKmh,"stopCount" to config.stopCount,"stopDurationSeconds" to config.stopDurationSeconds,"walkSpeedKmh" to config.walkSpeedKmh,"walkPercent" to (config.walkTimeRatio*100).toInt(),"maxLateralOffsetMeters" to config.maxLateralOffsetMeters,"altitudeMeters" to config.altitudeMeters,"satelliteCount" to config.satelliteCount)
         values.forEach {(key,value) ->fields.getValue(key).setText(model.draftFields[key] ?: value.toString())}
         val checkValues=mapOf("naturalSway" to config.naturalSway,"avoidance" to config.avoidance,"gpsDrift" to config.gpsDrift,"mockNetwork" to config.mockNetwork)
         checkValues.forEach {(key,value) ->checks.getValue(key).isChecked=model.draftChecks[key] ?: value}
@@ -244,6 +246,8 @@ class MainActivity: ComponentActivity() {
             plan.stops.forEach {append("停止 ${it.index}：人物弧长 ${format(it.humanDistanceMeters)} 米，实际驻留 ${it.durationSeconds} 秒\nWGS84 ${formatPoint(plan.path.at(it.humanDistanceMeters).humanPoint)}\n")}
             plan.walkingRegion?.let {append("集中步行：人物弧长 ${format(it.startMeters)}～${format(it.endMeters)} 米（走跑过渡不计分子）\n")}
             append("人物横向上限 ${format(plan.config.maxLateralOffsetMeters)} 米，GPS 半径 ${if (plan.config.gpsDrift) 2 else 0} 米\n")
+            append("模拟 WGS84 椭球高度 ${format(plan.config.altitudeMeters)} 米，连续观测误差 ±1.5 米（平坦路线模型）\n")
+            append("模拟 GPS 卫星 ${plan.config.satelliteCount} 颗，${if (plan.config.satelliteCount<4) "弱信号：水平精度 20～40 米" else "正常信号：水平精度 4～8 米"}；模拟值不代表真实卫星接收\n")
             append("避让 ${plan.path.avoidanceEvents.size} 次，最大峰值 ${format(plan.path.avoidanceEvents.maxOfOrNull {kotlin.math.abs(it.peakMeters)} ?: 0.0)} 米\n")
             if (plan.config.avoidance && plan.path.avoidanceEvents.isEmpty()) append("当前路线/偏移限制没有可用的完整避让窗口\n")
             append("固定 seed：${plan.seed}；开始后路线与参数冻结。")
@@ -256,7 +260,7 @@ class MainActivity: ComponentActivity() {
         status.snapshot?.let {s ->
             val stateText=when (s.state) {RunState.RUNNING->"运行中"; RunState.PAUSING->"平滑暂停中"; RunState.PAUSED->"已暂停"; RunState.RESUMING->"平滑恢复中"; RunState.STOPPING->"平滑结束中"; RunState.COMPLETED->"已完成"; RunState.INTERRUPTED->"已中断"; RunState.ERROR->"错误"; else->"未运行"}
             val modeText=when (s.mode) {MotionMode.RUN->"跑步巡航"; MotionMode.WALK->"步行巡航"; MotionMode.TRANSITION->"速度过渡"; MotionMode.DWELL->"自动驻留"}
-            findViewById<TextView>(R.id.stats).text="$stateText · $modeText\n当前速度 ${format(s.speedMetersPerSecond*3.6)} km/h\n完成 ${s.completedLoops} 圈，自动停留 ${s.completedStops} 次\n中心线 ${format(s.centerDistanceMeters)} 米\n人物实际行进 ${format(s.humanDistanceMeters)} 米\n移动 ${format(s.movingSeconds)} 秒，步行 ${format(s.walkingSeconds)} 秒\n实际步行占比 ${format(if (s.movingSeconds>0) s.walkingSeconds/s.movingSeconds*100 else 0.0)}%\nGPS WGS84：${formatPoint(s.reportedPoint)}\n精度 ${format(s.accuracyMeters)} 米\n${if (s.userIntervened) "用户干预，原预计占比可能变化；额外减速行进 ${format(s.interventionDistanceMeters)} 米" else ""}"
+            findViewById<TextView>(R.id.stats).text="$stateText · $modeText\n当前速度 ${format(s.speedMetersPerSecond*3.6)} km/h\n完成 ${s.completedLoops} 圈，自动停留 ${s.completedStops} 次\n中心线 ${format(s.centerDistanceMeters)} 米\n人物实际行进 ${format(s.humanDistanceMeters)} 米\n移动 ${format(s.movingSeconds)} 秒，步行 ${format(s.walkingSeconds)} 秒\n实际步行占比 ${format(if (s.movingSeconds>0) s.walkingSeconds/s.movingSeconds*100 else 0.0)}%\nGPS WGS84：${formatPoint(s.reportedPoint)}\n水平精度 ${format(s.accuracyMeters)} 米\n模拟椭球高度 ${format(s.altitudeMeters)} 米（垂直精度 ${format(s.verticalAccuracyMeters)} 米）\n模拟 GPS 卫星 ${s.satelliteCount} 颗 · ${if (s.satelliteCount<4) "弱信号档位" else "正常信号档位"}\n${if (s.userIntervened) "用户干预，原预计占比可能变化；额外减速行进 ${format(s.interventionDistanceMeters)} 米" else ""}"
             mapAdapter?.update(s)
         }
         val state=status.snapshot?.state

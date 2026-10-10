@@ -200,6 +200,42 @@ class AlgorithmTest {
         assertEquals(RunState.INTERRUPTED,interrupted.state)
     }
 
+    @Test fun altitudeAndGpsSignalRemainDeterministicAndDoNotAlterMotion() {
+        val plan=SessionPlanner.prepare(route(),SimulationConfig(altitudeMeters=123.5,satelliteCount=7),51L)
+        val normal=SimulationEngine(plan)
+        val replay=SimulationEngine(plan)
+        val weak=SimulationEngine(plan.copy(config=plan.config.copy(satelliteCount=3)))
+        assertEquals(123.5,normal.snapshot().altitudeMeters,1e-9)
+        listOf(0.0,0.1,14.99,15.0,15.01,30.0,60.0).forEach {seconds ->
+            val actual=normal.tick(seconds)
+            val repeated=replay.tick(seconds)
+            val degraded=weak.tick(seconds)
+            assertEquals(actual,repeated)
+            assertEquals(7,actual.satelliteCount)
+            assertEquals(3,degraded.satelliteCount)
+            assertTrue(actual.accuracyMeters in 4.0..8.0)
+            assertTrue(actual.verticalAccuracyMeters in 3.0..6.0)
+            assertTrue(degraded.accuracyMeters in 20.0..40.0)
+            assertEquals(degraded.accuracyMeters,degraded.verticalAccuracyMeters,1e-9)
+            assertTrue(abs(actual.altitudeMeters-123.5)<=1.5)
+            assertEquals(actual.altitudeMeters,degraded.altitudeMeters,1e-9)
+            assertEquals(actual.humanDistanceMeters,degraded.humanDistanceMeters,1e-9)
+            assertEquals(actual.speedMetersPerSecond,degraded.speedMetersPerSecond,1e-9)
+            assertEquals(actual.reportedPoint,degraded.reportedPoint)
+        }
+        val before=normal.snapshot().altitudeMeters
+        val after=normal.tick(60.01).altitudeMeters
+        assertTrue("高度在观测锚点不应跳变",abs(after-before)<0.001)
+        listOf(-500.0,9000.0).forEach {SimulationConfig(altitudeMeters=it).validate()}
+        listOf(-500.1,9000.1,Double.NaN).forEach {height ->
+            assertThrows(IllegalArgumentException::class.java) {SimulationConfig(altitudeMeters=height).validate()}
+        }
+        listOf(0,32).forEach {SimulationConfig(satelliteCount=it).validate()}
+        listOf(-1,33).forEach {count ->
+            assertThrows(IllegalArgumentException::class.java) {SimulationConfig(satelliteCount=count).validate()}
+        }
+    }
+
     @Test fun providerCleanupOnlyOwnsSuccessfullyCreatedResources() {
         class FakeAccess: ProviderAccess {
             val created=mutableListOf<String>()

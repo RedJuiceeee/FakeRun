@@ -158,9 +158,21 @@ class SimulationEngine(val plan: PreparedSimulation) {
         val error=if (plan.config.gpsDrift) gpsError(observationSeconds) else LocalVector(0.0,0.0)
         val accuracyIndex=floor(observationSeconds/15).toLong()
         val accuracyU=RandomValues.smoothStep5(observationSeconds/15-accuracyIndex)
-        val accuracyA=4+4*RandomValues.unit(plan.seed,40,accuracyIndex)
-        val accuracyB=4+4*RandomValues.unit(plan.seed,40,accuracyIndex+1)
-        return SimulationSnapshot(state,mode,position.routePoint,position.humanPoint,Geo.offset(position.humanPoint,error),speedMetersPerSecond,lastBearingDegrees,accuracyA+(accuracyB-accuracyA)*accuracyU,position.centerDistanceMeters,humanDistanceMeters,min(plan.config.loopCount,floor((position.centerDistanceMeters+1e-6)/plan.path.loopLengthMeters).toInt()),movingSeconds,walkingSeconds,completedStops.size,userIntervened,interventionDistanceMeters,message)
+        // 卫星数是用户配置的模拟观测字段；少于 4 时使用弱信号精度档位。
+        // 高度按平坦路线基准叠加连续观测误差，不推断地图上的真实地形。
+        val weakGps=plan.config.satelliteCount<4
+        val minAccuracyMeters=if (weakGps) 20.0 else 4.0
+        val accuracyRangeMeters=if (weakGps) 20.0 else 4.0
+        val accuracyA=minAccuracyMeters+accuracyRangeMeters*RandomValues.unit(plan.seed,40,accuracyIndex)
+        val accuracyB=minAccuracyMeters+accuracyRangeMeters*RandomValues.unit(plan.seed,40,accuracyIndex+1)
+        val accuracyMeters=accuracyA+(accuracyB-accuracyA)*accuracyU
+        fun altitudeErrorMeters(index: Long) = if (index==0L) 0.0 else 3*RandomValues.unit(plan.seed,41,index)-1.5
+        val altitudeA=altitudeErrorMeters(accuracyIndex)
+        val altitudeB=altitudeErrorMeters(accuracyIndex+1)
+        return SimulationSnapshot(state,mode,position.routePoint,position.humanPoint,Geo.offset(position.humanPoint,error),speedMetersPerSecond,lastBearingDegrees,accuracyMeters,position.centerDistanceMeters,humanDistanceMeters,min(plan.config.loopCount,floor((position.centerDistanceMeters+1e-6)/plan.path.loopLengthMeters).toInt()),movingSeconds,walkingSeconds,completedStops.size,userIntervened,interventionDistanceMeters,message,
+            altitudeMeters=plan.config.altitudeMeters+altitudeA+(altitudeB-altitudeA)*accuracyU,
+            verticalAccuracyMeters=if (weakGps) accuracyMeters else max(3.0,accuracyMeters*0.75),
+            satelliteCount=plan.config.satelliteCount)
     }
     private fun gpsError(seconds: Double): LocalVector {
         val index=floor(seconds/3).toLong()
