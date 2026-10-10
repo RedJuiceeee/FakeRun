@@ -8,6 +8,8 @@ local.properties
 local.properties.*
 !local.properties.example
 signing.properties
+signing.properties.*
+!signing.properties.example
 key.properties
 .env
 .env.*

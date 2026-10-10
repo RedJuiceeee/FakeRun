@@ -1,10 +1,10 @@
 # FakeRun 1.0.1
 
-发布日期：2026-10-10。版本：1.0.1 / versionCode 2。
+草稿日期：2026-10-10。版本：1.0.1 / versionCode 2。用户已明确不公开此含 AK 的安装包；请使用不预置 AK 的 1.0.2。
 
 ## 下载与安装
 
-本次发布 `FakeRun-1.0.1-debug.apk`，是用户已核验的 Android 调试签名包，**不是正式 release 签名包**。包名 `com.fakerun.app`，最低 Android 8.0（API 26），targetSdk 36；包含 arm64-v8a、armeabi-v7a、x86、x86_64。
+原草稿附件 `FakeRun-1.0.1-debug.apk` 是用户已核验的 Android 调试签名包，**不是正式 release 签名包，也未公开发布**。包名 `com.fakerun.app`，最低 Android 8.0（API 26），targetSdk 36；包含 arm64-v8a、armeabi-v7a、x86、x86_64。
 
 与此前交付的 1.0.1 APK 完全相同，未重新构建或更换签名。相同签名的既有安装可覆盖更新。安装后在开发者选项的“选择模拟位置信息应用”中选 FakeRun，授予精确定位权限，按 [README](../README.md) 使用。
 

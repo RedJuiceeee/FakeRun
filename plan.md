@@ -4,6 +4,8 @@
 
 实现规则更新（2026-10-10）：用户明确要求参考 GoGoGo 增加高度、卫星数量与弱 GPS 模拟；以下相关条款已按该要求更新。首版规划时的“高度未建模”不再描述当前版本，既有验证按对应版本保留。
 
+1.0.2 规则更新（2026-10-10）：按用户明确要求，APK 不预置 AK，改为应用内手动填写并保存到私有存储，提供简要教程与当前安装包的签名 SHA-1。旧版 local.properties 注入 AK 的方案不再适用。
+
 本文供其他模型执行。当前任务只交付规划和规范，不实现应用。正文的默认值是明确的首版产品决定；执行者可直接实现，不需要重新询问已经定义的行为。所有七项用户需求均为首版必做项，不能把抖动、停留或步行推迟为后续功能。
 
 ## 1. 交付目标与范围
@@ -36,7 +38,7 @@
 
 使用三个页面或三个清晰的界面区域：
 
-1. **准备**：隐私同意、AK 配置说明、定位权限、系统定位开关和开发者选项指引。提供打开开发者设置的按钮；选择模拟应用仍由用户在系统中完成。
+1. **准备**：隐私同意、AK 手动填写/清除与简要教程、实际 APK 签名 SHA-1 查看/复制、定位权限、系统定位开关和开发者选项指引。AK 仅保存本应用私有存储；地图初始化后更换 AK 须明确提示关闭重开，运行期间拒绝修改。提供打开开发者设置的按钮；选择模拟应用仍由用户在系统中完成。
 2. **路线与参数**：地图、绘制/撤销/节点编辑、闭合路线、路线保存列表及参数表单。地图可拖动缩放；点击仅在绘制模式下添加节点，拖动节点修改路径，点选节点后可删除；选择“闭合路线”明确画出末点到起点的连接线。
 3. **运行**：计划路线、人物轨迹、含 GPS 误差的输出位置、当前模式、当前速度、完成圈数、实际行进距离、移动时间、停留次数、步行占比；开始、暂停、继续、结束。通知提供暂停/继续及立即结束。
 
@@ -232,7 +234,7 @@ transitionDistance = (v0 + v1) × duration / 2
 ### 10.1 接入流程
 
 1. 用户同意应用隐私说明后，调用百度规定的隐私同意接口，再初始化 SDK；拒绝时不创建 MapView，不偷偷初始化。实现依据[百度开发注意事项](https://lbsyun.baidu.com/docs/android?title=androidsdk%2Fguide%2Fcreate-project%2Fattention)。
-2. AK 通过未提交的 `local.properties` 注入 Manifest 占位符，提供 `local.properties.example`；配置名 `BAIDU_MAP_AK`。Android SDK AK 绑定 `com.fakerun.app` 和签名 SHA-1，debug/release 分别正确配置，见[官方申请密钥说明](https://lbs.baidu.com/docs/guide?title=android-guide%2Fcreate-project%2Fak)。
+2. APK 不预置 AK，也不读取本机 `BAIDU_MAP_AK` 参与构建。AK 由准备页输入，校验空白与长度边界后保存到应用私有存储；用户同意隐私后，通过 `SDKInitializer.setApiKey` 在 SDK 初始化前设置。教程展示实际 APK 的签名 SHA-1，可复制包名和指纹；清除 AK 同样提供入口。SDK 已初始化时更换/清除需完整关闭重开，不沿用旧鉴权。Android SDK AK 绑定 `com.fakerun.app` 和当前签名 SHA-1，debug/release 分别正确配置，见[官方申请密钥说明](https://lbs.baidu.com/docs/guide?title=android-guide%2Fcreate-project%2Fak)。
 3. 开始操作只从可见 Activity 发起。确认系统定位开启、必要定位权限、模拟应用资格以及完整预览准备完毕，再启动前台服务。
 4. 创建 `gps` test provider 并启用；覆盖前读取设备原 provider 的来源需求、费用、功耗和精度类型，并声明本应用输出高度、速度、方向的能力。API 31 起用 `getProviderProperties` / `ProviderProperties`，旧版本读取 `LocationProvider` 并用对应旧重载。来源缺失或属性未知时明确提示，不猜测默认属性。按版本分支，不要反射调用私有接口。
 5. 可选开启“同时模拟 network provider”，默认开；两者发送同一位置、速度、精度及时间戳。`gps` 接入失败为明确错误；开启 network 时该 provider 接入失败同样提示，不静默宣称完整兼容。

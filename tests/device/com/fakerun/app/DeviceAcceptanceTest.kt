@@ -55,8 +55,7 @@ class DeviceAcceptanceTest {
     private fun report(text: String) {instrumentation.sendStatus(0,Bundle().apply {putString("stream","\n$text\n")})}
 
     private fun drawRouteThroughSdk(activity: Activity): Route {
-        val metadata=context.packageManager.getApplicationInfo(context.packageName,android.content.pm.PackageManager.GET_META_DATA).metaData
-        require(!metadata.getString("com.baidu.lbsapi.API_KEY").isNullOrBlank()) {"地图验收需要真实 AK"}
+        require(MapSettingsRepository(context).loadApiKey().isNotBlank()) {"地图验收需要先在应用内填写真实 AK"}
         if (!context.getSharedPreferences("privacy",Context.MODE_PRIVATE).getBoolean("agreed",false)) {
             instrumentation.runOnMainSync {activity.findViewById<android.widget.Button>(R.id.privacy).performClick()}
             waitFor(5.0) {instrumentation.uiAutomation.rootInActiveWindow?.findAccessibilityNodeInfosByText("同意")?.any {it.text?.toString()=="同意"}==true}

@@ -16,6 +16,8 @@
 
 官方 [Android Studio 集成文档](https://lbsyun.baidu.com/docs/android?title=androidsdk%2Fguide%2Fcreate-project%2Fandroidstudio)列出此版本；[隐私初始化接口](https://lbsyun.baidu.com/docs/android?title=androidsdk%2Fguide%2Fcreate-project%2Fattention)要求同意后、initialize 前设置 `setAgreePrivacy`。本应用在 initialize 后、MapView 创建前设 `CoordType.GCJ02`。没有添加检索、定位、导航或工具 SDK。
 
+1.0.2 使用公开的 `SDKInitializer.setApiKey` 动态传入用户在应用内保存的 AK，APK 的 Manifest 不预置 AK。依据[官方显示地图文档](https://lbsyun.baidu.com/docs/android?title=androidsdk%2Fguide%2Fcreate-map%2Fshowmap)及本机 8.2.0 AAR 接口核对。更换配置后完整关闭重开，避免沿用进程内 SDK 鉴权状态。正式签名配置参考 [Android 官方签名指南](https://developer.android.com/studio/publish/app-signing)，不在源码中保存私钥或密码。
+
 Maven POM 的 license 元数据标注 Apache-2.0；地图服务及 SDK 的实际使用还须遵守百度开放平台当期服务、隐私与开发者协议，不能用 POM 元数据推导服务无限免费。参考[产品说明](https://lbsyun.baidu.com/docs/android?title=androidsdk%2Findex)、[开发者权益](https://lbsyun.baidu.com/solutions/privilege)、[隐私政策](https://lbsyun.baidu.com/index.php?title=openprivacy)。AK、额度和签名绑定由用户控制台管理。本轮使用用户配置的 AK 验证了鉴权成功与 GCJ-02 实际点击，完整接入证据和视觉检查结论见 `tests/manual/verification.md`。不带 AK 的构建不能用于地图接入验收。
 
 ## GoGoGo 实现对照

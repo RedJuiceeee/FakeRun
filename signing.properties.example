@@ -1,0 +1,6 @@
+# 复制为 signing.properties 后填写，真实配置与私钥不要提交。
+# storeFile 可以是项目根目录的相对路径，或使用 / 分隔且转义盘符冒号的绝对路径。
+storeFile=release.jks
+storePassword=
+keyAlias=fakerun
+keyPassword=

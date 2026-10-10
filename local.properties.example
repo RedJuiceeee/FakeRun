@@ -1,3 +1,2 @@
-# 复制为 local.properties，填写 SDK 目录和百度 Android SDK AK；不要提交真实配置。
+# 复制为 local.properties，只填写 SDK 目录。地图 AK 在应用内填写，不参与构建。
 sdk.dir=C\:/Android/Sdk
-BAIDU_MAP_AK=

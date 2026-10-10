@@ -4,8 +4,8 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
-val localConfig = Properties().apply {
-    val file = rootProject.file("local.properties")
+val releaseProperties = Properties().apply {
+    val file = rootProject.file("signing.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
 android {
@@ -15,13 +15,29 @@ android {
         applicationId = "com.fakerun.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
-        manifestPlaceholders["BAIDU_MAP_AK"] = localConfig.getProperty("BAIDU_MAP_AK", "")
+        versionCode = 3
+        versionName = "1.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    signingConfigs {
+        if (releaseProperties.isNotEmpty()) {
+            create("release") {
+                fun requiredValue(name: String): String = releaseProperties.getProperty(name)
+                    ?.takeIf { it.isNotBlank() } ?: error("signing.properties 缺少 $name")
+                storeFile = rootProject.file(requiredValue("storeFile"))
+                storePassword = requiredValue("storePassword")
+                keyAlias = requiredValue("keyAlias")
+                keyPassword = requiredValue("keyPassword")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

@@ -10,7 +10,7 @@
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <application android:allowBackup="false" android:label="FakeRun" android:theme="@style/AppTheme" android:icon="@drawable/ic_runner" android:supportsRtl="true">
-    <meta-data android:name="com.baidu.lbsapi.API_KEY" android:value="${BAIDU_MAP_AK}" />
+    <meta-data android:name="com.baidu.lbsapi.API_KEY" android:value="" />
     <activity android:name=".ui.MainActivity" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />

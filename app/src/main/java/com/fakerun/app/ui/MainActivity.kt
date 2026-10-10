@@ -23,6 +23,7 @@ import com.baidu.mapapi.CoordType
 import com.baidu.mapapi.SDKInitializer
 import com.baidu.mapapi.RequestAuthResultListener
 import com.fakerun.app.R
+import com.fakerun.app.data.MapSettingsRepository
 import com.fakerun.app.geo.SupportedRegion
 import com.fakerun.app.location.*
 import com.fakerun.app.model.*
@@ -32,6 +33,7 @@ import java.util.UUID
 
 class MainActivity: ComponentActivity() {
     private val model: MainViewModel by viewModels()
+    private val mapSettings by lazy { MapSettingsRepository(this) }
     private var mapAdapter: MapAdapter?=null
     private val fields=linkedMapOf<String,EditText>()
     private val checks=linkedMapOf<String,CheckBox>()
@@ -43,7 +45,7 @@ class MainActivity: ComponentActivity() {
     private var page=0
     private var authListenerRegistered=false
     private val authListener=RequestAuthResultListener {code,_ ->
-        if (code!=RequestAuthResultListener.STATUS_AUTH_RESULT_NULL) {
+        if (!requiresMapRestart() && code!=RequestAuthResultListener.STATUS_AUTH_RESULT_NULL) {
             latestMapAuthCode=code
             runOnUiThread {model.showMessage(if (code==0) "百度地图鉴权成功，可开始绘制路线" else "百度地图鉴权失败（错误码 $code），请核对 AK、包名及当前 APK 签名 SHA-1")}
         }
@@ -53,6 +55,7 @@ class MainActivity: ComponentActivity() {
     }
     private val mapReceiver=object: BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            if (requiresMapRestart()) return
             if (intent.action==SDKInitializer.SDK_BROADTCAST_ACTION_STRING_PERMISSION_CHECK_ERROR) {
                 latestMapAuthCode=intent.getIntExtra(SDKInitializer.SDK_BROADTCAST_INTENT_EXTRA_INFO_KEY_ERROR_CODE,-1)
                 model.showMessage("百度地图鉴权失败（错误码 $latestMapAuthCode），请核对 AK、包名及当前 APK 签名 SHA-1")
@@ -75,6 +78,7 @@ class MainActivity: ComponentActivity() {
         }
         buildFields()
         bindButtons()
+        renderMapSettings()
         val filter=IntentFilter().apply {addAction(SDKInitializer.SDK_BROADTCAST_ACTION_STRING_PERMISSION_CHECK_ERROR); addAction(SDKInitializer.SDK_BROADTCAST_ACTION_STRING_PERMISSION_CHECK_OK); addAction(SDKInitializer.SDK_BROADCAST_ACTION_STRING_NETWORK_ERROR)}
         ContextCompat.registerReceiver(this,mapReceiver,filter,ContextCompat.RECEIVER_NOT_EXPORTED)
         page=savedInstanceState?.getInt("page") ?: if (SessionState.status.value.active) 2 else 0
@@ -96,7 +100,7 @@ class MainActivity: ComponentActivity() {
                 getSharedPreferences("privacy",MODE_PRIVATE).edit().putBoolean("agreed",true).apply(); initializeMap()
             }.setNegativeButton("拒绝") {_,_ -> model.showMessage("未同意隐私说明，地图未初始化")}.show()
         }
-        button(R.id.ak_help) {AlertDialog.Builder(this).setTitle("AK 与签名配置").setMessage("在工程 local.properties 填写 BAIDU_MAP_AK，重新构建。AK 必须是 Android SDK 类型，包名 com.fakerun.app，SHA-1 与安装 APK 的签名匹配。debug 与 release 需分别登记签名。可执行 gradlew :app:signingReport 查询；地图网络与免费额度以百度控制台为准。应用不调用路线规划服务。").setPositiveButton("知道了",null).show()}
+        button(R.id.ak_help) {showMapSettings()}
         button(R.id.permissions) {
             val requested=mutableListOf(Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION)
             if (Build.VERSION.SDK_INT>=33) requested+=Manifest.permission.POST_NOTIFICATIONS
@@ -138,10 +142,93 @@ class MainActivity: ComponentActivity() {
     private fun inputBoundary(action: ()->Unit) {
         try {action()} catch (error: IllegalArgumentException) {model.showMessage(error.message.orEmpty())} catch (error: IllegalStateException) {model.showMessage(error.message.orEmpty())} catch (error: SecurityException) {model.showMessage("系统拒绝操作：${error.message}")}
     }
+    private fun requiresMapRestart() = sdkInitialized && initializedApiKey != mapSettings.loadApiKey()
+
+    private fun renderMapSettings() {
+        findViewById<TextView>(R.id.ak_status).text=when {
+            requiresMapRestart() -> "AK 配置已更新，请关闭并重新打开应用后生效"
+            mapSettings.loadApiKey().isBlank() -> "尚未填写百度地图 AK；安装包不含预置密钥"
+            else -> "已保存个人 AK，仅保存在本应用私有存储"
+        }
+    }
+
+    private fun showMapSettings() {
+        val identity="包名：$packageName\n签名 SHA-1：\n${SigningIdentity.sha1Fingerprints(this).joinToString("\n") }"
+        val layout=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL; setPadding(24,8,24,8)}
+        layout.addView(TextView(this).apply {
+            text="1. 打开百度地图开放平台控制台，创建应用。\n2. 选择 Android SDK 类型，按下方包名和当前签名 SHA-1 创建 AK。\n3. 将 AK 粘贴到下方并保存，再同意隐私说明启用地图。\n\n地图已启用后更换或清除 AK，需要关闭并重开应用；请先保存未保存的路线。"
+        })
+        layout.addView(TextView(this).apply {text=identity; setTextIsSelectable(true); setPadding(0,16,0,8)})
+        layout.addView(Button(this).apply {
+            text="复制包名和 SHA-1"
+            setOnClickListener {
+                getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("FakeRun 签名信息",identity))
+                Toast.makeText(this@MainActivity,"包名和 SHA-1 已复制",Toast.LENGTH_SHORT).show()
+            }
+        })
+        layout.addView(Button(this).apply {
+            text="打开百度 AK 控制台"
+            setOnClickListener {
+                try {startActivity(Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://lbsyun.baidu.com/apiconsole/key")))}
+                catch (_: ActivityNotFoundException) {model.showMessage("没有可用浏览器，请手动访问百度地图开放平台控制台")}
+            }
+        })
+        val input=EditText(this).apply {
+            id=R.id.ak_input
+            hint="粘贴自己的 Android SDK AK"
+            inputType=InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+            importantForAutofill=View.IMPORTANT_FOR_AUTOFILL_NO
+            imeOptions=android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            isSaveEnabled=false
+            setText(mapSettings.loadApiKey())
+        }
+        layout.addView(input)
+        val scroll=ScrollView(this).apply {addView(layout)}
+        val dialog=AlertDialog.Builder(this).setTitle("填写 AK · 教程与签名").setView(scroll)
+            .setPositiveButton("保存 AK",null).setNeutralButton("清除 AK",null).setNegativeButton("取消",null).create()
+        dialog.setOnShowListener {
+            fun save(clear: Boolean) {
+                if (SessionState.status.value.active) {input.error="请先结束模拟，再修改 AK"; return}
+                try {
+                    if (clear) mapSettings.clearApiKey() else mapSettings.saveApiKey(input.text.toString())
+                    dialog.dismiss()
+                    applyMapSettings()
+                } catch (error: IllegalArgumentException) {input.error=error.message}
+                catch (error: java.io.IOException) {input.error=error.message}
+            }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {save(false)}
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {save(true)}
+        }
+        dialog.show()
+    }
+
+    private fun applyMapSettings() {
+        renderMapSettings()
+        if (requiresMapRestart()) {
+            // SDK 的 AK 与鉴权结果是进程级状态，更换后通过完整退出避免沿用旧鉴权。
+            if (authListenerRegistered) {SDKInitializer.removeAuthResultListener(authListener); authListenerRegistered=false}
+            mapAdapter?.let {adapter ->
+                adapter.pause()
+                findViewById<FrameLayout>(R.id.map_host).removeView(adapter.view)
+                adapter.destroy()
+            }
+            mapAdapter=null
+            latestMapAuthCode=null
+            model.showMessage("AK 配置已更新，请关闭并重开应用后启用地图")
+            AlertDialog.Builder(this).setTitle("重开应用使 AK 生效")
+                .setMessage("新配置已保存。关闭应用后请手动重开；未保存的路线编辑会丢失，可先取消并保存路线。")
+                .setPositiveButton("关闭应用") {_,_ -> finishAndRemoveTask(); android.os.Process.killProcess(android.os.Process.myPid())}
+                .setNegativeButton("稍后关闭",null).show()
+        } else if (getSharedPreferences("privacy",MODE_PRIVATE).getBoolean("agreed",false)) initializeMap()
+        else model.showMessage(if (mapSettings.loadApiKey().isBlank()) "AK 已清除，地图未启用" else "AK 已保存，请同意隐私说明启用地图")
+    }
+
     private fun initializeMap() {
+        if (requiresMapRestart()) {model.showMessage("AK 配置已更新，请关闭并重开应用后启用地图"); return}
         if (mapAdapter!=null) return
-        val ak=packageManager.getApplicationInfo(packageName,PackageManager.GET_META_DATA).metaData.getString("com.baidu.lbsapi.API_KEY").orEmpty()
-        if (ak.isBlank()) {model.showMessage("未配置 BAIDU_MAP_AK，地图尚未启用；请按 AK 配置说明重新构建"); return}
+        val ak=mapSettings.loadApiKey()
+        if (ak.isBlank()) {model.showMessage("未填写百度地图 AK，请在准备页点击“填写 AK · 教程与签名 SHA-1”"); return}
         try {
             if (!authListenerRegistered) {
                 SDKInitializer.addAuthResultListener(authListener)
@@ -149,9 +236,11 @@ class MainActivity: ComponentActivity() {
             }
             if (!sdkInitialized) {
                 SDKInitializer.setAgreePrivacy(applicationContext,true)
+                SDKInitializer.setApiKey(ak)
                 SDKInitializer.initialize(applicationContext)
                 SDKInitializer.setCoordType(CoordType.GCJ02)
                 sdkInitialized=true
+                initializedApiKey=ak
             }
             mapAdapter=MapAdapter(this,
                 onAdd={point -> inputBoundary {require(SupportedRegion.contains(point)) {"该坐标位于不支持地区"}; val route=model.state.value.route; require(route.nodes.size<500) {"最多 500 个节点"}; model.edit(route.copy(nodes=route.nodes+point,closed=false))}},
@@ -304,6 +393,7 @@ class MainActivity: ComponentActivity() {
     override fun onDestroy() {unregisterReceiver(mapReceiver); if (authListenerRegistered) SDKInitializer.removeAuthResultListener(authListener); mapAdapter?.destroy(); super.onDestroy()}
     companion object {
         private var sdkInitialized=false
+        private var initializedApiKey: String?=null
         @Volatile var latestMapAuthCode: Int?=null
             private set
     }
