@@ -1,46 +1,47 @@
 # 本次任务交接
 
-日期：2026-10-10。当前交付：FakeRun 1.0.1 / versionCode 2。
+日期：2026-10-10。当前应用：FakeRun 1.0.1 / versionCode 2。
 
 ## 当前任务及范围
 
-用户要求参考 ZCShou/GoGoGo 继续构建应用，明确 ADB 已断开、由用户安装测试；随后追加要求参考其高度、卫星数量与弱 GPS 内容模拟真实观测。本轮已完成源码修改、必要算法/构建检查和可安装签名 APK 交付。步道乐跑是否采用位置、弱 GPS 提示是否改善尚未实测，不能宣称兼容问题已修复或新版设备完整验收完成。
+用户反馈“核验通过”，要求检查 `.gitignore`、推送到 `RedJuiceeee/FakeRun`、检查正式版本安装包并创建 Release；随后明确确认发布已核验的 debug APK，Release 中注明调试签名。
 
-## 完成内容与修改文件
+## 完成内容
 
-- `app/src/main/java/com/fakerun/app/location/MockLocationController.kt`：覆盖前保留设备原 gps/network 来源、功耗和精度类型，声明高度/速度/方向能力；来源缺失、属性未知时明确报错。输出模拟 WGS84 椭球高度、垂直精度，GPS 添加 satellites 字段，保持 mock 标记与两种 provider 同步输出及自有资源清理。
-- `app/src/main/java/com/fakerun/app/model/Models.kt`、`simulation/SimulationEngine.kt`：新增高度基准默认 55 米、卫星数默认 7；高度 ±1.5 米连续观测误差与独立随机流；少于 4 颗使用 20～40 米弱信号精度档位。默认水平精度仍为 4～8 米，正常垂直精度 3～6 米。高度不改变水平路径、圈数或速度。
-- `app/src/main/java/com/fakerun/app/ui/MainActivity.kt`：新增参数编辑、预览和实时高度/卫星/精度显示。
-- `app/src/main/java/com/fakerun/app/data/RouteRepository.kt`：保存新增参数，旧 JSON 缺字段迁移到默认值；非法新字段明确拒绝，卫星小数不被截断。
-- `app/build.gradle.kts`：版本 1.0.1 / code 2，沿用本机调试签名和本地 AK。
-- `tests/unit/com/fakerun/app/AlgorithmTest.kt`：新增高度/信号观测连续性、重现性、范围和行进不受影响检查。
-- `tests/device/com/fakerun/app/DeviceAcceptanceTest.kt`：新增 provider 属性/输出/恢复检查，更新高度与卫星断言、JSON 保存迁移检查；仅编译，未运行。
-- `plan.md`、`README.md`、`docs/third-party.md`：按用户追加要求同步行为与边界，登记 GoGoGo 固定参考提交。
-- `tests/manual/gogogo-reference.md`、`tests/manual/acceptance.md`、`tests/manual/location-compatibility.md`：记录新版构建证据和无 ADB 测试步骤，明确旧版真机结论的版本范围。
-- `change.md`：本次最终交付与未验证事项。
+- 核对原工作区干净、既有版本和构建记录；仅存在已核验 debug APK，没有正式 release 签名包或正式签名配置。
+- 补全忽略规则，排除签名配置、环境文件及其备份、签名证书/私钥、AAB/APKS/签名旁文件、原生构建缓存、内存转储、路线与导出目录。配置示例和 Gradle Wrapper JAR 保持可跟踪；新增二进制后缀使用 binary 属性。
+- 全部历史提交检查未发现当前本地 AK、私钥块或实际本机目录；构建输出、APK、真实配置和设备原始日志均未跟踪。
+- 已将完整源码历史及发布文档推送到 `https://github.com/RedJuiceeee/FakeRun.git`，分支 `master`。发布内容提交：`09e0a3a9cd53e88751429f1afdd7a2c995be1186`。
+- 已创建 `v1.0.1` Release 草稿，上传 `FakeRun-1.0.1-debug.apk` 和 `SHA256SUMS.txt`；草稿目标为上述发布提交。草稿尚未公开，标签尚未核对为已创建。
 
-源码与测试提交：`5dadd15`（参考定位来源属性并加入模拟高度、卫星数与弱信号档位）。没有修改第三方 APK、用户路线、AK 或签名私钥，没有推送。
+## 修改文件
+
+- `.gitignore`：补全敏感配置、构建产物及个人数据目录忽略规则。
+- `.gitattributes`：补全新增二进制后缀属性。
+- `README.md`：加入预定 Release 地址、调试签名说明和用户核验反馈范围。
+- `docs/release-1.0.1.md`：发布说明、签名/校验信息、版本内容和验证范围。
+- `change.md`：本轮推送结果、草稿状态及公开发布阻碍。
 
 ## 验证证据
 
-最终命令：`gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --offline --console=plain`。结果 BUILD SUCCESSFUL，52 秒；9 项算法测试实际执行，0 失败、0 错误、0 跳过；普通 APK 与设备测试 APK 构建通过。Lint 0 错误、61 警告。用户追加要求及 JSON 小数校验修正使此前中间版本结论失效，因此重跑受影响检查。
-
-交付：`app/build/outputs/apk/debug/FakeRun-1.0.1-debug.apk`，80,575,776 字节；与标准 `app-debug.apk` 相同。SHA-256：`D163D638D6EC4353DDD11458F88A606C1A0421DEAE3C0161473F582731140BD7`。
-
-`apksigner verify --verbose --print-certs` 通过，v2 签名；SHA-1 与旧版相同：`24:7D:FB:FE:FD:58:DD:5D:3F:5F:CF:7C:DC:11:8E:AA:A0:FA:A8:6F`。`aapt dump badging` 确认 `com.fakerun.app`、1.0.1 / code 2、min 26 / target 36，以及四种 ABI。已有本地 AK 参与构建，未暴露或提交密钥。
-
-文本与差异检查通过，文本为 UTF-8 无 BOM、LF。APK、构建输出、密钥和原始设备日志不进入 Git。Gradle 测试源集仅映射 `tests/`，生产代码与普通 APK 不依赖测试目录；未实际删除测试。
+- `scripts/check-text.ps1` 与 `git diff --check` 通过：文本 UTF-8 无 BOM、LF。忽略规则命中真实配置、签名配置、环境文件、APK/AAB、签名旁文件、路线导出；示例配置及 Wrapper JAR 未忽略。
+- `apksigner verify --verbose --print-certs` 通过，v2 签名，证书为 Android Debug；签名 SHA-1：`24:7D:FB:FE:FD:58:DD:5D:3F:5F:CF:7C:DC:11:8E:AA:A0:FA:A8:6F`。
+- `aapt dump badging` 确认包名 `com.fakerun.app`、1.0.1 / code 2、minSdk 26 / targetSdk 36 和四种 ABI。
+- APK 80,575,776 字节，SHA-256：`D163D638D6EC4353DDD11458F88A606C1A0421DEAE3C0161473F582731140BD7`。GitHub 草稿附件状态 uploaded，大小与服务端 digest 一致；校验文件亦已上传。
+- `git push --set-upstream origin master` 成功，建立跟踪。远端此前为空，未改写历史。
+- 本轮无应用源码或构建配置变化，未重复算法测试或重建 APK。沿用本版本此前 9 项算法测试、debug 构建、设备测试 APK 编译和 lint 结果（0 错误、61 警告）。用户核验通过不扩展为未提供的逐项第三方兼容结论。
 
 ## 未完成事项、明确阻碍及所需外部条件
 
-本轮用户明确断开 ADB 并要求自行测试；因此新版未安装到手机，provider 动态属性行为、系统输出、高度/卫星字段被第三方采用情况、旧 JSON 实际迁移、新增界面显示、地图鉴权、后台/息屏、暂停恢复和完整两圈设备场景均未实测。设备测试 APK 构建成功不等于测试通过。
+公开发布 Release 被自动审批拒绝：已核验 APK 内含本地配置的百度地图 Android SDK AK，公开附件会使该 AK 可被提取；现有发布授权未被审批认定为明确授权公开该敏感内容。AK 数值、签名私钥和密码未写入源码或发布文档。Release 保持草稿。
 
-卫星数是 GPS Location 的附加字段，公开 test provider 不会生成 GNSS 卫星状态/NMEA/原始测量回调。模拟高度为平坦路线观测模型，不是测量地形。本轮没有 Root、Hook、清除 mock 标记或替换真实传感器回调。目标若依据未模拟接口或 SDK 过滤判断弱信号，仍可能显示原提示。
+草稿地址：`https://github.com/RedJuiceeee/FakeRun/releases/tag/untagged-5982b5a015cf8f89ca11`（需要仓库访问权限）。预定公开地址：`https://github.com/RedJuiceeee/FakeRun/releases/tag/v1.0.1`。
 
-外部条件：用户安装本次 APK，在同一手机、同一目标准备页反馈采用位置与错误文案，以及正常后台/结束恢复情况。若仍不能采用且无法获得有用错误信息，仍需目标可调试版本、相关定位配置源码或官方诊断区分其最终 SDK 分支。1.0.0 的真机系统输出证据不可作为新版验收结果。
+所需外部条件：用户明确授权公开发布含现有百度地图 AK 的已核验 APK；或明确改为无 AK 安装包。后一方案需要重建，地图不可直接使用，也不再是本次已核验的同一文件。正式签名包仍需另行提供正式签名配置和百度 AK 签名绑定。
 
 ## 下一执行者的准确下一步
 
-1. 阅读 `tests/manual/gogogo-reference.md`，先确认用户安装版本为 1.0.1 / code 2，对应上述 APK 哈希；先用默认 55 米、7 颗卫星和 network 开启复测准备页。
-2. 根据用户反馈核对是否有接入失败或仍报 GPS 信号弱。若重新提供设备连接，优先运行 `DeviceAcceptanceTest#nativeProviderCharacteristicsAndSynchronizedOutput` 及受影响保存/服务检查，再按 `tests/manual/acceptance.md` 完成新版两圈、两次停留、20% 步行与后台/息屏场景；不要反复重跑旧版本对照。
-3. 若仍拒绝位置，取得 SDK 的定位类型、错误码、mock 与最终坐标诊断后再定位根因。不能因高度或 satellites 字段存在就宣称已解决目标兼容性，不能把未运行项目标为通过。
+1. 先取得上述具体内容的公开授权，不绕过自动审批。GitHub CLI 无持久登录，但 Git Credential Manager 已有可用账号凭据；可仅在进程内供 CLI 使用，不输出或保存令牌。
+2. 若授权公开原包，读取草稿并确认目标提交、两个附件状态、APK 大小和 digest；执行 `gh release edit v1.0.1 --repo RedJuiceeee/FakeRun --draft=false --latest`，重新通过审批。
+3. 发布成功后核对公开地址、isDraft=false、附件下载地址、远端 v1.0.1 标签及目标提交；获取标签并更新本交接为真实完成状态，提交并推送。
+4. 若用户要求移除 AK，先按新要求准备包和相关验证，再更新附件、校验值和发布说明；不要冒用旧包核验结果。
